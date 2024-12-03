@@ -1,40 +1,14 @@
-#![allow(dead_code)]
-use std::{env::args, fs};
+use std::{env::args, fs, path::Path};
 
-use serde::Deserialize;
-
-#[derive(Debug, Deserialize)]
-struct Data {
-    problem: Problem,
-}
-
-#[derive(Debug, Deserialize)]
-struct Problem {
-    name: String,
-    nodes: ProblemNodes,
-    edges: ProblemEdges,
-    usage_limit: u64,
-}
-
-#[derive(Debug, Deserialize)]
-struct ProblemNodes {
-    intervals: Vec<[u64; 2]>,
-    costs: Vec<Vec<u64>>,
-    usages: Vec<Vec<u64>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ProblemEdges {
-    nodes: Vec<[usize; 2]>,
-    costs: Vec<Vec<u64>>,
-}
+mod data;
+mod model;
 
 fn main() -> anyhow::Result<()> {
     let Some(data_file) = args().nth(1) else {
         println!("Specify data file");
         return Ok(());
     };
-    let problem = serde_json::from_slice::<Data>(&fs::read(data_file)?)?.problem;
+    let problem = serde_json::from_slice::<data::Data>(&fs::read(&data_file)?)?.problem;
     println!("Problem {}", problem.name);
     println!(
         "  {} nodes, interval min {:?} max {:?}, {} total strategies",
@@ -48,5 +22,12 @@ fn main() -> anyhow::Result<()> {
         problem.edges.costs.iter().map(Vec::len).sum::<usize>(),
         problem.edges.nodes.len()
     );
+
+    let mut model = model::Model::new(problem.name);
+    println!("{model}");
+    fs::write(
+        Path::new(&data_file).with_extension("mps"),
+        model.to_string(),
+    )?;
     Ok(())
 }
