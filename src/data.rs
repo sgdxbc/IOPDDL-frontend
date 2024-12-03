@@ -15,13 +15,13 @@ pub struct Problem {
 
 #[derive(Debug, Deserialize)]
 pub struct ProblemNodes {
-    pub intervals: Vec<[u64; 2]>,
+    pub intervals: Vec<(u64, u64)>,
     pub costs: Vec<Vec<u64>>,
     pub usages: Vec<Vec<u64>>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ProblemEdges {
-    pub nodes: Vec<[usize; 2]>,
+    pub nodes: Vec<(usize, usize)>,
     pub costs: Vec<Vec<u64>>,
 }
