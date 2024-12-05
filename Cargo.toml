@@ -3,6 +3,9 @@ name = "frontend"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+commented-model = []
+
 [dependencies]
 anyhow = { version = "1.0.93", features = ["backtrace"] }
 serde = { version = "1.0.215", features = ["derive"] }

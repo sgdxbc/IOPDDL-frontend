@@ -9,6 +9,7 @@ pub struct Model {
 
 pub struct Var {
     name: String,
+    #[cfg(feature = "commented-model")]
     desc: Option<String>,
     nonzeros: Vec<(usize, i64)>, // (constr index, coefficient)
     obj_nonzero: Option<i64>,
@@ -25,6 +26,7 @@ pub struct Cols(Vec<(i64, usize)>); // (ceofficient, var index)
 
 pub struct Constr {
     pub name: String,
+    #[cfg(feature = "commented-model")]
     pub desc: Option<String>,
     pub cols: Cols,
     pub typ: ConstrType,
@@ -42,6 +44,7 @@ impl Display for Model {
         writeln!(f, "ROWS")?;
         writeln!(f, "{EMPTY:1}{:3}{OBJ}", "N")?;
         for constr in &self.constrs {
+            #[cfg(feature = "commented-model")]
             if let Some(desc) = &constr.desc {
                 writeln!(f, "* {desc}")?
             }
@@ -55,6 +58,7 @@ impl Display for Model {
 
         writeln!(f, "COLUMNS")?;
         for var in &self.vars {
+            #[cfg(feature = "commented-model")]
             if let Some(desc) = &var.desc {
                 writeln!(f, "* {desc}")?
             }
@@ -96,6 +100,7 @@ impl Model {
         let index = self.vars.len();
         self.vars.push(Var {
             name,
+            #[cfg(feature = "commented-model")]
             desc,
             nonzeros: Default::default(),
             obj_nonzero: None,
