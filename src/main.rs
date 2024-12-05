@@ -24,6 +24,7 @@ fn main() -> anyhow::Result<()> {
     );
 
     let mut model = model::Model::new(problem.name);
+    let mut obj = model::Cols::new();
     let mut strategy_vars = Vec::new();
     struct StrategyVar {
         var_index: usize,
@@ -54,6 +55,7 @@ fn main() -> anyhow::Result<()> {
                     "Decision varaible for strategy {node_index}/{strategy_index}"
                 )),
             )?;
+            obj.push(cost.try_into()?, var_index);
             node_strategy_vars.push(StrategyVar {
                 var_index,
                 cost,
@@ -106,6 +108,8 @@ fn main() -> anyhow::Result<()> {
                     var_name(),
                     Some(format!("Decision variable for edge {edge_desc}")),
                 )?;
+                // objective
+                obj.push(cost.try_into()?, var_index);
                 // edge >= strategy v i.e. edge must be selected if strategy v is selected
                 let mut cols = model::Cols::new();
                 cols.push(1, var_index);
@@ -132,6 +136,7 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
+    model.set_obj(obj);
     // println!("{model}");
     fs::write(
         Path::new(&data_file).with_extension("mps"),
