@@ -31,18 +31,25 @@ fn main() -> anyhow::Result<()> {
         interval: (u64, u64),
         usage: u64,
     }
+    let mut strategy_count = 0;
     for (node_index, node_costs) in problem.nodes.costs.iter().enumerate() {
         let mut node_strategy_vars = Vec::new();
         for (strategy_index, cost) in node_costs.iter().copied().enumerate() {
-            let var_index = model.add_var(format!("n{node_index:x}_{strategy_index:x}"))?;
+            let var_index = model.add_var(
+                format!("S{strategy_count:07}"),
+                Some(format!(
+                    "Decision varaible for node {node_index} strategy {strategy_index}"
+                )),
+            )?;
+            strategy_count += 1;
             node_strategy_vars.push(StrategyVar {
                 var_index,
                 cost,
                 interval: problem.nodes.intervals[node_index],
                 usage: problem.nodes.usages[node_index][strategy_index],
-            });
+            })
         }
-        strategy_vars.push(node_strategy_vars);
+        strategy_vars.push(node_strategy_vars)
     }
 
     for (node_index, node_strategy_vars) in strategy_vars.iter().enumerate() {
@@ -51,7 +58,10 @@ fn main() -> anyhow::Result<()> {
             cols.push(1, var.var_index)
         }
         model.add_constr(model::Constr {
-            name: Some(format!("U{node_index:x}")), // U for unique selection
+            name: format!("U{node_index:07}"), // U for unique selection
+            desc: Some(format!(
+                "Exact one strategy is select for node {node_index}"
+            )),
             cols,
             typ: model::ConstrType::Equal,
             rhs: 1,

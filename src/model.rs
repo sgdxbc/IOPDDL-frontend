@@ -4,13 +4,14 @@ pub struct Model {
     name: String,
     vars: Vec<Var>,
     constrs: Vec<Constr>,
-    objective: Cols,
+    obj: Cols,
 }
 
 pub struct Var {
     name: String,
-    coes: Vec<(usize, i64)>,
-    obj_coe: Option<i64>,
+    desc: Option<String>,
+    nonzeros: Vec<(usize, i64)>, // (constr index, coefficient)
+    obj_nonzero: Option<i64>,
 }
 
 pub enum ConstrType {
@@ -20,10 +21,11 @@ pub enum ConstrType {
 }
 
 #[derive(Default)]
-pub struct Cols(Vec<(i64, usize)>);
+pub struct Cols(Vec<(i64, usize)>); // (ceofficient, var index)
 
 pub struct Constr {
-    pub name: Option<String>,
+    pub name: String,
+    pub desc: Option<String>,
     pub cols: Cols,
     pub typ: ConstrType,
     pub rhs: i64,
@@ -33,43 +35,41 @@ impl Display for Model {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{:14}{}", "NAME", self.name)?;
 
-        const OBJ: &str = "OBJ";
+        const OBJ: &str = "OBJECTIV";
         const EMPTY: &str = "";
-        const IGNORED: &str = "_";
+        const IGNORED: &str = "________";
 
         writeln!(f, "ROWS")?;
         writeln!(f, "{EMPTY:1}{:3}{OBJ}", "N")?;
-        for (i, constr) in self.constrs.iter().enumerate() {
+        for constr in &self.constrs {
+            if let Some(desc) = &constr.desc {
+                writeln!(f, "* {desc}")?
+            }
             let typ = match &constr.typ {
                 ConstrType::Equal => "E",
                 ConstrType::LessEqual => "L",
                 ConstrType::GraterEqual => "G",
             };
-            let fallback_name = format!("R{i}");
-            let name = constr.name.as_ref().unwrap_or(&fallback_name);
-            writeln!(f, "{EMPTY:1}{typ:3}{name:}")?
+            writeln!(f, "{EMPTY:1}{typ:3}{}", constr.name)?
         }
 
         writeln!(f, "COLUMNS")?;
         for var in &self.vars {
-            if let Some(coe) = var.obj_coe {
+            if let Some(desc) = &var.desc {
+                writeln!(f, "* {desc}")?
+            }
+            if let Some(coe) = var.obj_nonzero {
                 writeln!(f, "{EMPTY:4}{:10}{OBJ:10}{coe}", var.name)?
             }
-            for &(constr_index, coe) in &var.coes {
-                let fallback_name = format!("R{constr_index}");
-                let constr_name = self.constrs[constr_index]
-                    .name
-                    .as_ref()
-                    .unwrap_or(&fallback_name);
-                writeln!(f, "{EMPTY:4}{:10}{constr_name:10}{coe}", var.name)?
+            for &(constr_index, coe) in &var.nonzeros {
+                let constr = &self.constrs[constr_index];
+                writeln!(f, "{EMPTY:4}{:10}{:10}{coe}", var.name, constr.name)?
             }
         }
 
         writeln!(f, "RHS")?;
-        for (i, constr) in self.constrs.iter().enumerate() {
-            let fallback_name = format!("R{i}");
-            let name = constr.name.as_ref().unwrap_or(&fallback_name);
-            writeln!(f, "{EMPTY:4}{IGNORED:10}{name:10}{}", constr.rhs)?
+        for constr in &self.constrs {
+            writeln!(f, "{EMPTY:4}{IGNORED:10}{:10}{}", constr.name, constr.rhs)?
         }
 
         writeln!(f, "BOUNDS")?;
@@ -87,38 +87,37 @@ impl Model {
             name,
             vars: Default::default(),
             constrs: Default::default(),
-            objective: Default::default(),
+            obj: Default::default(),
         }
     }
 
-    pub fn add_var(&mut self, name: String) -> anyhow::Result<usize> {
-        anyhow::ensure!(name.len() < 10);
+    pub fn add_var(&mut self, name: String, desc: Option<String>) -> anyhow::Result<usize> {
+        anyhow::ensure!(name.len() == 8);
         let index = self.vars.len();
         self.vars.push(Var {
             name,
-            coes: Default::default(),
-            obj_coe: None,
+            desc,
+            nonzeros: Default::default(),
+            obj_nonzero: None,
         });
         Ok(index)
     }
 
     pub fn add_constr(&mut self, constr: Constr) -> anyhow::Result<()> {
-        if let Some(name) = &constr.name {
-            anyhow::ensure!(name.len() < 10)
-        }
+        anyhow::ensure!(constr.name.len() == 8);
         let index = self.constrs.len();
         for &(coe, var_index) in &constr.cols.0 {
-            self.vars[var_index].coes.push((index, coe))
+            self.vars[var_index].nonzeros.push((index, coe))
         }
         self.constrs.push(constr);
         Ok(())
     }
 
-    pub fn set_objective(&mut self, objective: Cols) {
+    pub fn set_obj(&mut self, objective: Cols) {
         for &(coe, var_index) in &objective.0 {
-            self.vars[var_index].obj_coe = Some(coe);
+            self.vars[var_index].obj_nonzero = Some(coe);
         }
-        self.objective = objective
+        self.obj = objective
     }
 }
 
