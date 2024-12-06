@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeMap,
     env::args,
     fs::{self, File},
     io::{BufWriter, Write as _},
@@ -31,14 +32,11 @@ fn main() -> anyhow::Result<()> {
     let mut model = model::Model::new(problem.name);
     let mut obj = model::Cols::new();
 
-    println!("Exact one node strategy selection constraints");
+    println!("Node primary enumeration");
+    // {node -> {strategy -> var}}
     let mut strategy_vars = Vec::new();
-    struct StrategyVar {
-        var_index: usize,
-        cost: u64,
-        interval: (u64, u64),
-        usage: u64,
-    }
+    // interval.0 -> [node]
+    let mut instant_nodes = BTreeMap::new();
     let mut var_name = {
         let mut count = 0;
         move || {
@@ -46,35 +44,31 @@ fn main() -> anyhow::Result<()> {
             format!("S{count:07}")
         }
     };
-    assert_eq!(problem.nodes.costs.len(), problem.nodes.usages.len());
     assert_eq!(problem.nodes.costs.len(), problem.nodes.intervals.len());
-    for (node_index, ((node_costs, node_usages), &interval)) in problem
+    for (node_index, (node_costs, node_interval)) in problem
         .nodes
         .costs
         .iter()
-        .zip(&problem.nodes.usages)
         .zip(&problem.nodes.intervals)
         .enumerate()
     {
         let mut node_strategy_vars = Vec::new();
         let mut cols = model::Cols::new();
-        assert_eq!(node_costs.len(), node_usages.len());
-        for (strategy_index, (&cost, &usage)) in node_costs.iter().zip(node_usages).enumerate() {
+        for (strategy_index, &cost) in node_costs.iter().enumerate() {
             let var_index = model.add_var(
                 var_name(),
                 Some(format!(
                     "Decision varaible for strategy {node_index}/{strategy_index}"
                 )),
             )?;
+            // contribute to objective
             obj.push(cost.try_into()?, var_index);
+            // contribute to node strategy selection (below)
             cols.push(1, var_index);
-            node_strategy_vars.push(StrategyVar {
-                var_index,
-                cost,
-                interval,
-                usage,
-            })
+            // bookkeeping
+            node_strategy_vars.push(var_index)
         }
+
         model.add_constr(model::Constr {
             name: format!("U{node_index:07x}"), // U for unique selection
             #[cfg(feature = "commented-model")]
@@ -85,10 +79,42 @@ fn main() -> anyhow::Result<()> {
             typ: model::ConstrType::Equal,
             rhs: 1,
         })?;
+
+        instant_nodes.insert(node_interval.0, Vec::new());
         strategy_vars.push(node_strategy_vars)
     }
 
-    println!("Strategy/edge connectivity constraints");
+    println!("Node interval enumeration");
+    for (node_index, &(start, end)) in problem.nodes.intervals.iter().enumerate() {
+        for (_, nodes) in instant_nodes.range_mut(start..end) {
+            nodes.push(node_index)
+        }
+    }
+    for (instant, nodes) in instant_nodes {
+        let mut cols = model::Cols::new();
+        for node_index in nodes {
+            assert_eq!(
+                strategy_vars[node_index].len(),
+                problem.nodes.usages[node_index].len()
+            );
+            for (&var_index, &usage) in strategy_vars[node_index]
+                .iter()
+                .zip(&problem.nodes.usages[node_index])
+            {
+                cols.push(usage.try_into()?, var_index)
+            }
+        }
+        model.add_constr(model::Constr {
+            name: format!("I{instant:07}"), // I for interval usage
+            #[cfg(feature = "commented-model")]
+            desc: Some(format!("Usage limit at instant {instant}")),
+            cols,
+            typ: model::ConstrType::LessEqual,
+            rhs: problem.usage_limit.try_into()?,
+        })?
+    }
+
+    println!("Edge enumeration");
     let mut var_name = {
         let mut count = 0;
         move || {
@@ -110,8 +136,8 @@ fn main() -> anyhow::Result<()> {
             strategy_vars[node_v].len() * strategy_vars[node_u].len()
         );
         let mut i = 0;
-        for (v_index, strategy_v) in strategy_vars[node_v].iter().enumerate() {
-            for (u_index, strategy_u) in strategy_vars[node_u].iter().enumerate() {
+        for (v_index, &v_strategy_var) in strategy_vars[node_v].iter().enumerate() {
+            for (u_index, &u_strategy_var) in strategy_vars[node_u].iter().enumerate() {
                 let cost = edge_costs[i];
                 i += 1;
 
@@ -125,7 +151,7 @@ fn main() -> anyhow::Result<()> {
                 // edge >= strategy v i.e. edge must be selected if strategy v is selected
                 let mut cols = model::Cols::new();
                 cols.push(1, var_index);
-                cols.push(-1, strategy_v.var_index);
+                cols.push(-1, v_strategy_var);
                 model.add_constr(model::Constr {
                     name: constr_name(),
                     #[cfg(feature = "commented-model")]
@@ -137,7 +163,7 @@ fn main() -> anyhow::Result<()> {
                 // edge >= strategy u i.e. edge must be selected if strategy u is selected
                 let mut cols = model::Cols::new();
                 cols.push(1, var_index);
-                cols.push(-1, strategy_u.var_index);
+                cols.push(-1, u_strategy_var);
                 model.add_constr(model::Constr {
                     name: constr_name(),
                     #[cfg(feature = "commented-model")]

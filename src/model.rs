@@ -95,7 +95,11 @@ impl Model {
         }
     }
 
-    pub fn add_var(&mut self, name: String, desc: Option<String>) -> anyhow::Result<usize> {
+    pub fn add_var(
+        &mut self,
+        name: String,
+        #[allow(unused)] desc: Option<String>,
+    ) -> anyhow::Result<usize> {
         anyhow::ensure!(name.len() == 8);
         let index = self.vars.len();
         self.vars.push(Var {
