@@ -1,0 +1,24 @@
+version = 1
+requires-python = ">=3.12"
+
+[[package]]
+name = "backend"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "gurobipy" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "gurobipy", specifier = ">=12.0.0" }]
+
+[[package]]
+name = "gurobipy"
+version = "12.0.0"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/09/c2/8918e9d411fb83c2f93e4fb8bae71f31a82c8d44b5df9b33f50f7ac9fd39/gurobipy-12.0.0-cp312-cp312-macosx_10_9_universal2.whl", hash = "sha256:b5c35cb981a61527016855324e054cae473496785db57f0682bd56d584a96eee", size = 12119658 },
+    { url = "https://files.pythonhosted.org/packages/93/af/2b00508ddfdda81f844e43f759e0c5d03155002dee6799afd909a9292cd0/gurobipy-12.0.0-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:f8287de7535c3b9c97f4aa8716969d70302a972bd09e9d3b6fbd7266ca0eab72", size = 62524673 },
+    { url = "https://files.pythonhosted.org/packages/75/6f/e82ab73013d5ff0ef399a26c30fe04fbce8e308f026892f6a133bb0e3fdd/gurobipy-12.0.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:90bba495efb25cff5a3826158aff7be29637d2e80accc3a89a98cb8630856106", size = 14211124 },
+    { url = "https://files.pythonhosted.org/packages/4a/ee/d003bc6eb5bf8efabf8b647c19ab8e806e214e5d89bc88c963b4fa414f24/gurobipy-12.0.0-cp312-cp312-win_amd64.whl", hash = "sha256:724fc6484913c100eb12ef1c33ff2d54ee9150ee061eb636474ebad1112ec33f", size = 11085783 },
+]

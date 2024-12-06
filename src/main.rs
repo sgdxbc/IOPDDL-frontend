@@ -9,6 +9,9 @@ use std::{
 mod data;
 mod model;
 
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 fn main() -> anyhow::Result<()> {
     let Some(data_file) = args().nth(1) else {
         println!("Specify data file");
@@ -181,5 +184,9 @@ fn main() -> anyhow::Result<()> {
     println!("Write model file");
     let mut model_file = BufWriter::new(File::create(Path::new(&data_file).with_extension("mps"))?);
     write!(&mut model_file, "{model}")?;
+    // fs::write(
+    //     Path::new(&data_file).with_extension("mps"),
+    //     format!("{model}"),
+    // )?;
     Ok(())
 }
